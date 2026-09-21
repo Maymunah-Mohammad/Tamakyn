@@ -1,0 +1,143 @@
+/* ==========================================================================
+   طمأنينة | Tamanina - Safe Mode Stylesheet
+   Designed for WCAG 2.2 accessibility, high contrast, typography clarity,
+   and cognitive calm.
+   ========================================================================== */
+
+/* Root safe variable overrides */
+:root {
+  --tamanina-font-family: 'Segoe UI', Tahoma, Arial, 'Cairo', 'Amiri', sans-serif !important;
+  --tamanina-bg-primary: #F7FAFC !important;
+  --tamanina-text-primary: #0F172A !important;
+  --tamanina-accent-teal: #0D9488 !important;
+  --tamanina-accent-teal-dark: #0F766E !important;
+  --tamanina-warning-bg: #FEF3C7 !important;
+  --tamanina-warning-text: #92400E !important;
+  --tamanina-danger-border: #EF4444 !important;
+  --tamanina-success-border: #10B981 !important;
+  --tamanina-touch-target: 48px !important;
+}
+
+/* Global calm & clarity overrides when safe mode body class is enabled */
+body.tamanina-safe-mode-active {
+  font-family: var(--tamanina-font-family);
+  font-size: 19px !important;
+  line-height: 1.75 !important;
+  letter-spacing: 0.02em !important;
+  background-color: #F8FAFC !important;
+  color: #0F172A !important;
+}
+
+/* Typography scale enhancements */
+body.tamanina-safe-mode-active p,
+body.tamanina-safe-mode-active li,
+body.tamanina-safe-mode-active span,
+body.tamanina-safe-mode-active td {
+  font-size: 1.15rem !important;
+  line-height: 1.8 !important;
+}
+
+body.tamanina-safe-mode-active h1 { font-size: 2.2rem !important; font-weight: 700 !important; margin-bottom: 0.8rem !important; }
+body.tamanina-safe-mode-active h2 { font-size: 1.8rem !important; font-weight: 700 !important; margin-bottom: 0.6rem !important; }
+body.tamanina-safe-mode-active h3 { font-size: 1.5rem !important; font-weight: 600 !important; margin-bottom: 0.5rem !important; }
+
+/* Hide distracting marketing ads, flashing popups, social floating widgets, and complex overlay clutter */
+body.tamanina-safe-mode-active iframe[src*="ads"],
+body.tamanina-safe-mode-active [class*="ad-banner"],
+body.tamanina-safe-mode-active [class*="newsletter-popup"],
+body.tamanina-safe-mode-active [id*="cookie-banner"]:not(.tamanina-kept),
+body.tamanina-safe-mode-active [class*="sticky-promo"],
+body.tamanina-safe-mode-active [class*="floating-widget"]:not(#tamanina-floating-badge),
+body.tamanina-safe-mode-active .ad,
+body.tamanina-safe-mode-active .ads,
+body.tamanina-safe-mode-active .advertisement {
+  display: none !important;
+}
+
+/* High Contrast & Clear Buttons */
+body.tamanina-safe-mode-active button,
+body.tamanina-safe-mode-active input[type="submit"],
+body.tamanina-safe-mode-active input[type="button"],
+body.tamanina-safe-mode-active .btn,
+body.tamanina-safe-mode-active a.button {
+  min-height: var(--tamanina-touch-target) !important;
+  min-width: 120px !important;
+  padding: 12px 24px !important;
+  font-size: 1.1rem !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15) !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Primary confirmative action buttons */
+body.tamanina-safe-mode-active .tamanina-btn-primary,
+body.tamanina-safe-mode-active button[type="submit"],
+body.tamanina-safe-mode-active input[type="submit"] {
+  background-color: var(--tamanina-accent-teal) !important;
+  color: #FFFFFF !important;
+  border: 3px solid #064E3B !important;
+}
+
+body.tamanina-safe-mode-active .tamanina-btn-primary:focus,
+body.tamanina-safe-mode-active button[type="submit"]:focus {
+  outline: 4px solid #F59E0B !important;
+  outline-offset: 3px !important;
+}
+
+/* Clear Form Fields */
+body.tamanina-safe-mode-active input[type="text"],
+body.tamanina-safe-mode-active input[type="email"],
+body.tamanina-safe-mode-active input[type="password"],
+body.tamanina-safe-mode-active input[type="number"],
+body.tamanina-safe-mode-active select,
+body.tamanina-safe-mode-active textarea {
+  min-height: 48px !important;
+  font-size: 1.1rem !important;
+  padding: 10px 14px !important;
+  border: 2px solid #475569 !important;
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  border-radius: 6px !important;
+}
+
+body.tamanina-safe-mode-active input:focus,
+body.tamanina-safe-mode-active select:focus,
+body.tamanina-safe-mode-active textarea:focus {
+  border-color: #0D9488 !important;
+  outline: 3px solid #0D9488 !important;
+  outline-offset: 1px !important;
+}
+
+/* Dark Pattern Warning Annotations */
+.tamanina-dark-pattern-flag {
+  border: 3px dashed #DC2626 !important;
+  background-color: #FEF2F2 !important;
+  position: relative !important;
+  padding: 8px !important;
+  border-radius: 8px !important;
+}
+
+.tamanina-warning-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background-color: #991B1B !important;
+  color: #FFFFFF !important;
+  font-size: 0.95rem !important;
+  font-weight: bold !important;
+  padding: 4px 10px !important;
+  border-radius: 4px !important;
+  margin: 4px 0 !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+  z-index: 99999 !important;
+}
+
+/* High visibility focus outlines across all interactive elements */
+body.tamanina-safe-mode-active a:focus,
+body.tamanina-safe-mode-active button:focus,
+body.tamanina-safe-mode-active [tabindex]:focus {
+  outline: 4px solid #2563EB !important;
+  outline-offset: 2px !important;
+}
