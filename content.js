@@ -72,6 +72,7 @@
       setReaderLine(msg.enabled);
       sendResponse({ status: 'ok' });
     } else if (msg.action === 'GET_AUDIT') {
+      runAudit(); // Ensure fresh recalculation on popup request
       sendResponse({ audit: auditResults });
     }
     return true;
@@ -131,7 +132,6 @@
     auditResults = { timers: 0, deceptive: 0, flashing: 0, complexForms: 0 };
 
     // 1. Audit Artificial Urgency & Deceptive Pressure ONLY
-    // Genuine urgency/pressure manipulation keywords
     const urgencyKeywords = [
       'ينتهي الخصم', 'عرض محدود', 'ينتهي خلال', 'سارع قبل', 'ينتهي العرض',
       'فرصة أخيرة', 'سارع الآن', 'باقي على العرض', 'ينتهي في', 'خصم ينتهي',
@@ -139,7 +139,6 @@
       'only left', 'last chance', 'order within', 'deal expires', 'sale ends'
     ];
 
-    // Helpful duration contexts to NEVER flag (Reading time, video duration, course length)
     const helpfulDurationContexts = [
       'read', 'reading', 'watch', 'video', 'duration', 'length', 'course', 'listen', 'audio',
       'قراءة', 'مشاهدة', 'فيديو', 'مدة', 'دورة', 'استماع', 'صوت'
@@ -147,22 +146,26 @@
 
     const allElements = document.querySelectorAll('div, span, p, h1, h2, h3, section, header, label');
     allElements.forEach(el => {
+      // Retain counts for previously flagged elements
+      if (el.dataset.tamaninaType === 'timer') {
+        auditResults.timers++;
+        return;
+      }
+
       const text = (el.textContent || '').trim().toLowerCase();
 
       // NEVER flag helpful informative reading/video time metrics
       if (helpfulDurationContexts.some(ctx => text.includes(ctx))) return;
 
-      // An element MUST contain an explicit urgency manipulation keyword to be flagged
       const hasUrgencyText = urgencyKeywords.some(kw => text.includes(kw));
 
-      if (hasUrgencyText && !el.dataset.tamaninaFlagged) {
-        if (text.length < 150) {
-          el.dataset.tamaninaFlagged = "true";
-          el.classList.add('tamanina-dark-pattern-flag');
-          auditResults.timers++;
+      if (hasUrgencyText && text.length < 150) {
+        el.dataset.tamaninaFlagged = "true";
+        el.dataset.tamaninaType = "timer";
+        el.classList.add('tamanina-dark-pattern-flag');
+        auditResults.timers++;
 
-          injectWarningAnnotation(el, TEXTS[currentLang].timerWarning);
-        }
+        injectWarningAnnotation(el, TEXTS[currentLang].timerWarning);
       }
     });
 
@@ -174,11 +177,18 @@
 
     const linksAndBtns = document.querySelectorAll('a, button, span[role="button"], input[type="checkbox"]');
     linksAndBtns.forEach(item => {
+      if (item.dataset.tamaninaType === 'deceptive') {
+        auditResults.deceptive++;
+        return;
+      }
+
       // Pre-checked hidden checkboxes for extras/newsletters
-      if (item.tagName === 'INPUT' && item.type === 'checkbox' && item.checked && !item.dataset.tamaninaFlagged) {
+      if (item.tagName === 'INPUT' && item.type === 'checkbox' && item.checked) {
         item.dataset.tamaninaFlagged = "true";
+        item.dataset.tamaninaType = "deceptive";
         auditResults.deceptive++;
         injectWarningAnnotation(item.parentElement || item, TEXTS[currentLang].precheckedWarning);
+        return;
       }
 
       // Hidden low-contrast or shamed opt-out links
@@ -187,8 +197,9 @@
       const style = window.getComputedStyle(item);
       const isTinyOrFaded = parseFloat(style.fontSize) <= 12 || parseFloat(style.opacity) < 0.6;
 
-      if (isDeceptiveText && isTinyOrFaded && !item.dataset.tamaninaFlagged) {
+      if (isDeceptiveText && isTinyOrFaded) {
         item.dataset.tamaninaFlagged = "true";
+        item.dataset.tamaninaType = "deceptive";
         item.classList.add('tamanina-dark-pattern-flag');
         auditResults.deceptive++;
         injectWarningAnnotation(item, TEXTS[currentLang].deceptiveWarning);
@@ -198,12 +209,18 @@
     // 3. Audit Flashing / Excessive Distracting Animations
     const animatedElements = document.querySelectorAll('*');
     animatedElements.forEach(el => {
+      if (el.dataset.tamaninaType === 'flashing') {
+        auditResults.flashing++;
+        return;
+      }
+
       const style = window.getComputedStyle(el);
       const animation = style.animationName;
-      if (animation && animation !== 'none' && !el.dataset.tamaninaFlagged) {
+      if (animation && animation !== 'none') {
         const duration = parseFloat(style.animationDuration) || 0;
         if (duration < 1.0 && duration > 0) { // Rapid flashing (< 1s)
           el.dataset.tamaninaFlagged = "true";
+          el.dataset.tamaninaType = "flashing";
           auditResults.flashing++;
           if (isSafeMode) {
             el.style.animation = 'none';
@@ -215,9 +232,15 @@
     // 4. Audit Dense / Complex Forms
     const forms = document.querySelectorAll('form');
     forms.forEach(form => {
+      if (form.dataset.tamaninaType === 'complexForm') {
+        auditResults.complexForms++;
+        return;
+      }
+
       const inputs = form.querySelectorAll('input:not([type="hidden"]), select, textarea');
-      if (inputs.length > 5 && !form.dataset.tamaninaFlagged) {
+      if (inputs.length > 5) {
         form.dataset.tamaninaFlagged = "true";
+        form.dataset.tamaninaType = "complexForm";
         auditResults.complexForms++;
       }
     });
