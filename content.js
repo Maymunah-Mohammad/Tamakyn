@@ -130,20 +130,31 @@
   function runAudit() {
     auditResults = { timers: 0, deceptive: 0, flashing: 0, complexForms: 0 };
 
-    // 1. Audit Countdown Timers & Artificial Urgency
+    // Explicit Urgency & Pressure Keywords
     const timerKeywords = [
       'ينتهي الخصم', 'عرض محدود', 'ينتهي خلال', 'سارع قبل', 'ينتهي العرض',
-      'offer expires', 'hurry up', 'limited time', 'ends in', 'countdown', 'only left'
+      'offer expires', 'hurry up', 'limited time', 'ends in', 'countdown', 'only left',
+      'last chance', 'فرصة أخيرة', 'سارع الآن'
     ];
 
-    const allElements = document.querySelectorAll('div, span, p, h1, h2, h3, section, header');
-    allElements.forEach(el => {
-      // Check for ticking text numbers (e.g., 00:59 or 12m 30s) or urgency keywords
-      const text = (el.textContent || '').trim().toLowerCase();
-      const hasUrgencyText = timerKeywords.some(kw => text.includes(kw));
-      const hasTimePattern = /\b\d{1,2}:\d{2}(:\d{2})?\b/.test(text) || /\b\d+\s*(m|s|min|sec)\b/.test(text);
+    // Legitimate Article Reading Time Exclusions (e.g., "7 min read", "5 min read")
+    const readingTimeExclusions = [
+      'min read', 'mins read', 'minute read', 'minutes read',
+      'وقت القراءة', 'دقيقة قراءة', 'دقائق قراءة', 'read time'
+    ];
 
-      if ((hasUrgencyText || (hasTimePattern && el.children.length === 0)) && !el.dataset.tamaninaFlagged) {
+    const allElements = document.querySelectorAll('div, span, p, h1, h2, h3, section, header, label');
+    allElements.forEach(el => {
+      const text = (el.textContent || '').trim().toLowerCase();
+
+      // Skip elements containing legitimate article reading duration tags
+      if (readingTimeExclusions.some(ex => text.includes(ex))) return;
+
+      const hasUrgencyText = timerKeywords.some(kw => text.includes(kw));
+      // Strict clock pattern (e.g. 04:59 or 00:15:30)
+      const hasClockPattern = /\b\d{1,2}:\d{2}(:\d{2})?\b/.test(text);
+
+      if ((hasUrgencyText || (hasClockPattern && el.children.length === 0)) && !el.dataset.tamaninaFlagged) {
         if (text.length < 150) { // Limit false positives on large body paragraphs
           el.dataset.tamaninaFlagged = "true";
           el.classList.add('tamanina-dark-pattern-flag');
