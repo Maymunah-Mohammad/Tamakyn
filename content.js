@@ -157,8 +157,10 @@
       'قراءة', 'مشاهدة', 'فيديو', 'مدة', 'دورة', 'استماع', 'صوت'
     ];
 
-    // 1. Audit Urgency Elements
+    // 1. Audit Urgency Elements (Deduplicate nested parent DOM containers)
+    const rawUrgencyCandidates = [];
     const allElements = document.querySelectorAll('div, span, p, h1, h2, h3, section, header, label');
+    
     allElements.forEach(el => {
       const text = (el.textContent || '').trim().toLowerCase();
       if (helpfulDurationContexts.some(ctx => text.includes(ctx))) return;
@@ -166,15 +168,24 @@
       const hasUrgencyText = urgencyKeywords.some(kw => text.includes(kw));
 
       if (hasUrgencyText && text.length < 150) {
-        const id = 'tamanina_issue_' + (issueCounter++);
-        el.dataset.tamaninaIssueId = id;
-        detailedIssues.push({
-          id: id,
-          type: 'timer',
-          snippet: text.substring(0, 70),
-          element: el
-        });
+        rawUrgencyCandidates.push(el);
       }
+    });
+
+    // Keep ONLY innermost leaf elements (remove outer parent wrappers)
+    const leafUrgencyElements = rawUrgencyCandidates.filter(parentEl => {
+      return !rawUrgencyCandidates.some(childEl => childEl !== parentEl && parentEl.contains(childEl));
+    });
+
+    leafUrgencyElements.forEach(el => {
+      const id = 'tamanina_issue_' + (issueCounter++);
+      el.dataset.tamaninaIssueId = id;
+      detailedIssues.push({
+        id: id,
+        type: 'timer',
+        snippet: (el.textContent || '').trim().substring(0, 70),
+        element: el
+      });
     });
 
     // 2. Audit Deceptive / Hidden Opt-Outs & Prechecked Checkboxes
@@ -211,26 +222,35 @@
       }
     });
 
-    // 3. Audit Flashing Animations
+    // 3. Audit Flashing Animations (Deduplicated)
     const animatedElements = document.querySelectorAll('*');
+    const rawFlashingCandidates = [];
     animatedElements.forEach(el => {
       const style = window.getComputedStyle(el);
       const animation = style.animationName;
       if (animation && animation !== 'none') {
         const duration = parseFloat(style.animationDuration) || 0;
         if (duration < 1.0 && duration > 0) {
-          const id = 'tamanina_issue_' + (issueCounter++);
-          el.dataset.tamaninaIssueId = id;
-          detailedIssues.push({
-            id: id,
-            type: 'flashing',
-            snippet: (el.textContent || 'عنصر حركة').trim().substring(0, 50),
-            element: el
-          });
-          if (isSafeMode) {
-            el.style.animation = 'none';
-          }
+          rawFlashingCandidates.push(el);
         }
+      }
+    });
+
+    const leafFlashing = rawFlashingCandidates.filter(parentEl => {
+      return !rawFlashingCandidates.some(childEl => childEl !== parentEl && parentEl.contains(childEl));
+    });
+
+    leafFlashing.forEach(el => {
+      const id = 'tamanina_issue_' + (issueCounter++);
+      el.dataset.tamaninaIssueId = id;
+      detailedIssues.push({
+        id: id,
+        type: 'flashing',
+        snippet: (el.textContent || 'عنصر حركة').trim().substring(0, 50),
+        element: el
+      });
+      if (isSafeMode) {
+        el.style.animation = 'none';
       }
     });
 
