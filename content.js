@@ -27,7 +27,7 @@
       safeModeOn: "نمط الأمان: مفعّل",
       safeModeOff: "تفعيل نمط الأمان البسيط",
       threatsFound: "تنبيهات مكتشفة:",
-      timerWarning: "⚠️ تنبيه طمأنينة: عنصر ضغط زمني / عداد تنازلي",
+      timerWarning: "⚠️ تنبيه طمأنينة: عنصر ضغط زمني / عداد تنازلي مضلل",
       deceptiveWarning: "⚠️ تنبيه طمأنينة: خيار مضلل أو زر إلغاء مخفي",
       precheckedWarning: "⚠️ خيار مسبق التحديد لحفظ بيانات أو اشتراك إضافي",
       confirmHighlight: "زر تأكيد رئيسي",
@@ -38,7 +38,7 @@
       safeModeOn: "Safe Mode: Active",
       safeModeOff: "Enable Safe Mode",
       threatsFound: "Detected Warnings:",
-      timerWarning: "⚠️ Tamanina Notice: Artificial urgency / countdown timer",
+      timerWarning: "⚠️ Tamanina Notice: Artificial pressure / deceptive countdown",
       deceptiveWarning: "⚠️ Tamanina Notice: Deceptive pattern or hidden opt-out",
       precheckedWarning: "⚠️ Pre-checked subscription/option detected",
       confirmHighlight: "Primary Action",
@@ -130,32 +130,33 @@
   function runAudit() {
     auditResults = { timers: 0, deceptive: 0, flashing: 0, complexForms: 0 };
 
-    // Explicit Urgency & Pressure Keywords
-    const timerKeywords = [
+    // 1. Audit Artificial Urgency & Deceptive Pressure ONLY
+    // Genuine urgency/pressure manipulation keywords
+    const urgencyKeywords = [
       'ينتهي الخصم', 'عرض محدود', 'ينتهي خلال', 'سارع قبل', 'ينتهي العرض',
-      'offer expires', 'hurry up', 'limited time', 'ends in', 'countdown', 'only left',
-      'last chance', 'فرصة أخيرة', 'سارع الآن'
+      'فرصة أخيرة', 'سارع الآن', 'باقي على العرض', 'ينتهي في', 'خصم ينتهي',
+      'offer expires', 'hurry up', 'limited time', 'ends in', 'countdown', 
+      'only left', 'last chance', 'order within', 'deal expires', 'sale ends'
     ];
 
-    // Legitimate Article Reading Time Exclusions (e.g., "7 min read", "5 min read")
-    const readingTimeExclusions = [
-      'min read', 'mins read', 'minute read', 'minutes read',
-      'وقت القراءة', 'دقيقة قراءة', 'دقائق قراءة', 'read time'
+    // Helpful duration contexts to NEVER flag (Reading time, video duration, course length)
+    const helpfulDurationContexts = [
+      'read', 'reading', 'watch', 'video', 'duration', 'length', 'course', 'listen', 'audio',
+      'قراءة', 'مشاهدة', 'فيديو', 'مدة', 'دورة', 'استماع', 'صوت'
     ];
 
     const allElements = document.querySelectorAll('div, span, p, h1, h2, h3, section, header, label');
     allElements.forEach(el => {
       const text = (el.textContent || '').trim().toLowerCase();
 
-      // Skip elements containing legitimate article reading duration tags
-      if (readingTimeExclusions.some(ex => text.includes(ex))) return;
+      // NEVER flag helpful informative reading/video time metrics
+      if (helpfulDurationContexts.some(ctx => text.includes(ctx))) return;
 
-      const hasUrgencyText = timerKeywords.some(kw => text.includes(kw));
-      // Strict clock pattern (e.g. 04:59 or 00:15:30)
-      const hasClockPattern = /\b\d{1,2}:\d{2}(:\d{2})?\b/.test(text);
+      // An element MUST contain an explicit urgency manipulation keyword to be flagged
+      const hasUrgencyText = urgencyKeywords.some(kw => text.includes(kw));
 
-      if ((hasUrgencyText || (hasClockPattern && el.children.length === 0)) && !el.dataset.tamaninaFlagged) {
-        if (text.length < 150) { // Limit false positives on large body paragraphs
+      if (hasUrgencyText && !el.dataset.tamaninaFlagged) {
+        if (text.length < 150) {
           el.dataset.tamaninaFlagged = "true";
           el.classList.add('tamanina-dark-pattern-flag');
           auditResults.timers++;
