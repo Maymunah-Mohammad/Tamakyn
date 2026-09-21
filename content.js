@@ -1,7 +1,7 @@
 /**
  * طمأنينة | Tamanina - Content Script Engine
  * Performs Cognitive Load Audit, Dark Pattern Scanning, Safe Mode Injection,
- * and Accessibility Overlays.
+ * and Spotlight Focus Overlay.
  */
 
 (function () {
@@ -14,11 +14,23 @@
   let readerLineEl = null;
   let floatingBadgeEl = null;
 
-  let auditResults = {
-    timers: 0,
-    deceptive: 0,
-    flashing: 0,
-    complexForms: 0
+  let detailedIssues = [];
+
+  const ISSUE_TITLES = {
+    ar: {
+      timer: "عنصر ضغط زمني / عداد تنازلي مضلل",
+      deceptive: "خيار مضلل / زر إلغاء مخفي",
+      prechecked: "مربع اختيار اشتراك مسبق التحديد",
+      flashing: "عنصر ميتوهج أو حركة متسارعة مزعجة",
+      complexForm: "نموذج معقد عالي الكثافة"
+    },
+    en: {
+      timer: "Artificial Urgency / Deceptive Countdown",
+      deceptive: "Deceptive Pattern / Hidden Opt-Out Link",
+      prechecked: "Pre-Checked Subscription Checkbox",
+      flashing: "Flashing / Rapid Motion Distraction",
+      complexForm: "High Density / Complex Form"
+    }
   };
 
   const TEXTS = {
@@ -26,10 +38,6 @@
       badgeTitle: "طمأنينة: تم فحص الصفحة",
       safeModeOn: "نمط الأمان: مفعّل",
       safeModeOff: "تفعيل نمط الأمان البسيط",
-      threatsFound: "تنبيهات مكتشفة:",
-      timerWarning: "⚠️ تنبيه طمأنينة: عنصر ضغط زمني / عداد تنازلي مضلل",
-      deceptiveWarning: "⚠️ تنبيه طمأنينة: خيار مضلل أو زر إلغاء مخفي",
-      precheckedWarning: "⚠️ خيار مسبق التحديد لحفظ بيانات أو اشتراك إضافي",
       confirmHighlight: "زر تأكيد رئيسي",
       backHighlight: "زر العودة / إلغاء"
     },
@@ -37,10 +45,6 @@
       badgeTitle: "Tamanina: Page Audited",
       safeModeOn: "Safe Mode: Active",
       safeModeOff: "Enable Safe Mode",
-      threatsFound: "Detected Warnings:",
-      timerWarning: "⚠️ Tamanina Notice: Artificial pressure / deceptive countdown",
-      deceptiveWarning: "⚠️ Tamanina Notice: Deceptive pattern or hidden opt-out",
-      precheckedWarning: "⚠️ Pre-checked subscription/option detected",
       confirmHighlight: "Primary Action",
       backHighlight: "Back / Cancel"
     }
@@ -67,13 +71,22 @@
       sendResponse({ status: 'ok' });
     } else if (msg.action === 'SCAN_PAGE') {
       runAudit();
-      sendResponse({ status: 'ok', audit: auditResults });
+      sendResponse({ status: 'ok', issueCount: detailedIssues.length });
     } else if (msg.action === 'TOGGLE_READER_LINE') {
       setReaderLine(msg.enabled);
       sendResponse({ status: 'ok' });
-    } else if (msg.action === 'GET_AUDIT') {
-      runAudit(); // Ensure fresh recalculation on popup request
-      sendResponse({ audit: auditResults });
+    } else if (msg.action === 'GET_DETAILED_ISSUES') {
+      runAudit();
+      const serializableIssues = detailedIssues.map(item => ({
+        id: item.id,
+        type: item.type,
+        title: ISSUE_TITLES[currentLang][item.type] || item.type,
+        snippet: item.snippet
+      }));
+      sendResponse({ issues: serializableIssues });
+    } else if (msg.action === 'HIGHLIGHT_ISSUE') {
+      spotlightIssue(msg.issueId);
+      sendResponse({ status: 'ok' });
     }
     return true;
   });
@@ -129,9 +142,9 @@
 
   // Dark Pattern & Cognitive Load Audit
   function runAudit() {
-    auditResults = { timers: 0, deceptive: 0, flashing: 0, complexForms: 0 };
+    detailedIssues = [];
+    let issueCounter = 1;
 
-    // 1. Audit Artificial Urgency & Deceptive Pressure ONLY
     const urgencyKeywords = [
       'ينتهي الخصم', 'عرض محدود', 'ينتهي خلال', 'سارع قبل', 'ينتهي العرض',
       'فرصة أخيرة', 'سارع الآن', 'باقي على العرض', 'ينتهي في', 'خصم ينتهي',
@@ -144,84 +157,76 @@
       'قراءة', 'مشاهدة', 'فيديو', 'مدة', 'دورة', 'استماع', 'صوت'
     ];
 
+    // 1. Audit Urgency Elements
     const allElements = document.querySelectorAll('div, span, p, h1, h2, h3, section, header, label');
     allElements.forEach(el => {
-      // Retain counts for previously flagged elements
-      if (el.dataset.tamaninaType === 'timer') {
-        auditResults.timers++;
-        return;
-      }
-
       const text = (el.textContent || '').trim().toLowerCase();
-
-      // NEVER flag helpful informative reading/video time metrics
       if (helpfulDurationContexts.some(ctx => text.includes(ctx))) return;
 
       const hasUrgencyText = urgencyKeywords.some(kw => text.includes(kw));
 
       if (hasUrgencyText && text.length < 150) {
-        el.dataset.tamaninaFlagged = "true";
-        el.dataset.tamaninaType = "timer";
-        el.classList.add('tamanina-dark-pattern-flag');
-        auditResults.timers++;
-
-        injectWarningAnnotation(el, TEXTS[currentLang].timerWarning);
+        const id = 'tamanina_issue_' + (issueCounter++);
+        el.dataset.tamaninaIssueId = id;
+        detailedIssues.push({
+          id: id,
+          type: 'timer',
+          snippet: text.substring(0, 70),
+          element: el
+        });
       }
     });
 
-    // 2. Audit Deceptive & Hidden Opt-Out Buttons / Pre-Checked Traps
-    const deceptiveKeywords = [
-      'لا شكراً', 'إلغاء الاشتراك', 'لا أستفيد', 'تجاهل',
-      'no thanks', 'skip offer', 'decline discount', 'i prefer paying'
-    ];
-
+    // 2. Audit Deceptive / Hidden Opt-Outs & Prechecked Checkboxes
     const linksAndBtns = document.querySelectorAll('a, button, span[role="button"], input[type="checkbox"]');
     linksAndBtns.forEach(item => {
-      if (item.dataset.tamaninaType === 'deceptive') {
-        auditResults.deceptive++;
-        return;
-      }
-
-      // Pre-checked hidden checkboxes for extras/newsletters
       if (item.tagName === 'INPUT' && item.type === 'checkbox' && item.checked) {
-        item.dataset.tamaninaFlagged = "true";
-        item.dataset.tamaninaType = "deceptive";
-        auditResults.deceptive++;
-        injectWarningAnnotation(item.parentElement || item, TEXTS[currentLang].precheckedWarning);
+        const id = 'tamanina_issue_' + (issueCounter++);
+        item.dataset.tamaninaIssueId = id;
+        const parentText = (item.parentElement ? item.parentElement.textContent : item.value || '').trim();
+        detailedIssues.push({
+          id: id,
+          type: 'prechecked',
+          snippet: parentText.substring(0, 70),
+          element: item.parentElement || item
+        });
         return;
       }
 
-      // Hidden low-contrast or shamed opt-out links
+      const deceptiveKeywords = ['لا شكراً', 'إلغاء الاشتراك', 'لا أستفيد', 'تجاهل', 'no thanks', 'skip offer', 'decline discount', 'i prefer paying'];
       const text = (item.textContent || '').trim().toLowerCase();
       const isDeceptiveText = deceptiveKeywords.some(kw => text.includes(kw));
       const style = window.getComputedStyle(item);
       const isTinyOrFaded = parseFloat(style.fontSize) <= 12 || parseFloat(style.opacity) < 0.6;
 
       if (isDeceptiveText && isTinyOrFaded) {
-        item.dataset.tamaninaFlagged = "true";
-        item.dataset.tamaninaType = "deceptive";
-        item.classList.add('tamanina-dark-pattern-flag');
-        auditResults.deceptive++;
-        injectWarningAnnotation(item, TEXTS[currentLang].deceptiveWarning);
+        const id = 'tamanina_issue_' + (issueCounter++);
+        item.dataset.tamaninaIssueId = id;
+        detailedIssues.push({
+          id: id,
+          type: 'deceptive',
+          snippet: text.substring(0, 70),
+          element: item
+        });
       }
     });
 
-    // 3. Audit Flashing / Excessive Distracting Animations
+    // 3. Audit Flashing Animations
     const animatedElements = document.querySelectorAll('*');
     animatedElements.forEach(el => {
-      if (el.dataset.tamaninaType === 'flashing') {
-        auditResults.flashing++;
-        return;
-      }
-
       const style = window.getComputedStyle(el);
       const animation = style.animationName;
       if (animation && animation !== 'none') {
         const duration = parseFloat(style.animationDuration) || 0;
-        if (duration < 1.0 && duration > 0) { // Rapid flashing (< 1s)
-          el.dataset.tamaninaFlagged = "true";
-          el.dataset.tamaninaType = "flashing";
-          auditResults.flashing++;
+        if (duration < 1.0 && duration > 0) {
+          const id = 'tamanina_issue_' + (issueCounter++);
+          el.dataset.tamaninaIssueId = id;
+          detailedIssues.push({
+            id: id,
+            type: 'flashing',
+            snippet: (el.textContent || 'عنصر حركة').trim().substring(0, 50),
+            element: el
+          });
           if (isSafeMode) {
             el.style.animation = 'none';
           }
@@ -229,39 +234,48 @@
       }
     });
 
-    // 4. Audit Dense / Complex Forms
-    const forms = document.querySelectorAll('form');
-    forms.forEach(form => {
-      if (form.dataset.tamaninaType === 'complexForm') {
-        auditResults.complexForms++;
-        return;
-      }
-
-      const inputs = form.querySelectorAll('input:not([type="hidden"]), select, textarea');
-      if (inputs.length > 5) {
-        form.dataset.tamaninaFlagged = "true";
-        form.dataset.tamaninaType = "complexForm";
-        auditResults.complexForms++;
-      }
-    });
-
     updateFloatingBadgeText();
   }
 
-  function injectWarningAnnotation(element, message) {
-    if (element.querySelector('.tamanina-warning-badge')) return;
-    const badge = document.createElement('div');
-    badge.className = 'tamanina-warning-badge';
-    badge.textContent = message;
-    
-    if (element.nextSibling) {
-      element.parentNode.insertBefore(badge, element.nextSibling);
-    } else {
-      element.parentNode.appendChild(badge);
-    }
+  // SPOTLIGHT MODE: Scrolls to element, dims host page with white backdrop, adds glowing pulse
+  function spotlightIssue(issueId) {
+    dismissSpotlight();
+
+    const targetObj = detailedIssues.find(item => item.id === issueId);
+    if (!targetObj || !targetObj.element) return;
+
+    const el = targetObj.element;
+
+    // Create semi-transparent white backdrop
+    const backdrop = document.createElement('div');
+    backdrop.id = 'tamanina-spotlight-backdrop';
+    document.body.appendChild(backdrop);
+
+    // Apply glowing focus class to element
+    el.classList.add('tamanina-spotlight-glowing');
+
+    // Scroll element smoothly into center of viewport
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Dismiss spotlight when clicking backdrop overlay or ESC key
+    backdrop.addEventListener('click', dismissSpotlight);
+    window.addEventListener('keydown', function escListener(e) {
+      if (e.key === 'Escape') {
+        dismissSpotlight();
+        window.removeEventListener('keydown', escListener);
+      }
+    });
   }
 
-  // Highlight key action buttons for elderly & cognitive impaired users
+  function dismissSpotlight() {
+    const backdrop = document.getElementById('tamanina-spotlight-backdrop');
+    if (backdrop) backdrop.remove();
+
+    document.querySelectorAll('.tamanina-spotlight-glowing').forEach(el => {
+      el.classList.remove('tamanina-spotlight-glowing');
+    });
+  }
+
   function enhanceActionButtons() {
     const buttons = document.querySelectorAll('button, input[type="submit"], .btn, a.button');
     const confirmWords = ['تأكيد', 'موافقة', 'حفظ', 'إرسال', 'استمرار', 'متابعة', 'confirm', 'submit', 'save', 'continue', 'agree', 'pay'];
@@ -279,7 +293,6 @@
     });
   }
 
-  // Floating Tamanina Accessibility Badge
   function createFloatingBadge() {
     if (document.getElementById('tamanina-floating-badge')) return;
 
@@ -320,7 +333,7 @@
   function updateFloatingBadgeText() {
     if (!floatingBadgeEl) return;
     const langDict = TEXTS[currentLang];
-    const totalThreats = auditResults.timers + auditResults.deceptive + auditResults.flashing;
+    const totalThreats = detailedIssues.length;
     
     floatingBadgeEl.innerHTML = `
       <span style="font-size: 18px;">🛡️</span>
@@ -329,7 +342,6 @@
     `;
   }
 
-  // Observe Dynamic DOM changes (for React/Angular SPAs)
   const observer = new MutationObserver((mutations) => {
     let shouldScan = false;
     for (const mutation of mutations) {

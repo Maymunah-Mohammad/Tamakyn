@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>صفحة اختبار طمأنينة | Tamanina Test Page</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #F1F5F9;
+      margin: 0;
+      padding: 20px;
+      color: #334155;
+    }
+    .container {
+      max-width: 700px;
+      margin: 30px auto;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    h1 { color: #1E293B; }
+    
+    /* Dark Pattern 1: Artificial Urgency Banner */
+    .urgency-banner {
+      background: #FEF2F2;
+      border: 2px solid #EF4444;
+      color: #991B1B;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .timer {
+      font-size: 20px;
+      background: #991B1B;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+
+    /* Dark Pattern 2: Hidden Shamed Opt-out Link */
+    .shamed-link {
+      font-size: 10px;
+      color: #CBD5E1;
+      text-decoration: none;
+      display: block;
+      margin-top: 15px;
+      opacity: 0.5;
+    }
+
+    /* Form Area */
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label { display: block; margin-bottom: 5px; font-weight: bold; }
+    input[type="text"], input[type="email"] {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+
+    /* Buttons */
+    .btn-submit {
+      background: #2563EB;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .ad-banner {
+      background: #FFFBEB;
+      border: 1px dashed #F59E0B;
+      padding: 15px;
+      margin: 20px 0;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>صفحة اختبار الأنظمة والأنماط المضللة</h1>
+  <p>هذه الصفحة مصممة لاختبار ملحق <strong>طمأنينة (Tamanina)</strong> وتجربة نمط الأمان وفحص الأنماط المضللة.</p>
+
+  <!-- Threat 1: Urgency Timer -->
+  <div class="urgency-banner">
+    <span>⚠️ تنتهي الفرصة والخصم الخاص قريباً! سارع الآن قبل انتهاء الوقت</span>
+    <span class="timer" id="clock">04:59</span>
+  </div>
+
+  <!-- Ad Clutter -->
+  <div class="ad-banner">
+    📢 إعلان ترويجي مميز: اشترك الآن وحصل على هدية مجانية! (سيتم إخفاؤه عند تفعيل نمط الأمان)
+  </div>
+
+  <form onsubmit="event.preventDefault(); alert('تم الإرسال!');">
+    <div class="form-group">
+      <label>الاسم الكامل</label>
+      <input type="text" placeholder="أدخل اسمك">
+    </div>
+
+    <div class="form-group">
+      <label>البريد الإلكتروني</label>
+      <input type="email" placeholder="example@mail.com">
+    </div>
+
+    <!-- Threat 2: Pre-checked newsletter trap -->
+    <div class="form-group">
+      <label style="font-weight: normal; font-size: 13px;">
+        <input type="checkbox" checked> أوافق على التجديد التلقائي لرسائل العروض الشهرية بقيمة 5$
+      </label>
+    </div>
+
+    <div>
+      <button type="submit" class="btn-submit">تأكيد الشراء والطلب</button>
+    </div>
+
+    <!-- Threat 3: Low Contrast Hidden Cancel Link -->
+    <a href="#" class="shamed-link">لا شكراً، فضل الاستمرار بالسعر الكامل بدون خصم وإلغاء الاستفادة</a>
+  </form>
+</div>
+
+<script>
+  // Simple Ticking Timer simulation
+  let seconds = 299;
+  setInterval(() => {
+    if (seconds > 0) seconds--;
+    const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+    const s = String(seconds % 60).padStart(2, '0');
+    document.getElementById('clock').textContent = `${m}:${s}`;
+  }, 1000);
+</script>
+
+</body>
+</html>
